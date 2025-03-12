@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Keuangan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4">Laporan Keuangan</h2>
+        
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-green-100 p-4 rounded-lg">
+                <p class="text-lg font-semibold">Saldo</p>
+                <p id="saldo" class="text-2xl font-bold text-green-600">Rp 0</p>
+            </div>
+            <div class="bg-blue-100 p-4 rounded-lg">
+                <p class="text-lg font-semibold">Pemasukan</p>
+                <p id="total-pemasukan" class="text-2xl font-bold text-blue-600">Rp 0</p>
+            </div>
+            <div class="bg-red-100 p-4 rounded-lg">
+                <p class="text-lg font-semibold">Pengeluaran</p>
+                <p id="total-pengeluaran" class="text-2xl font-bold text-red-600">Rp 0</p>
+            </div>
+        </div>
+
+        <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2">Tambah Transaksi</h3>
+            <form id="transaction-form" class="grid grid-cols-2 gap-4">
+                <input type="date" id="date" class="p-2 border rounded-lg" required>
+                <input type="text" id="description" placeholder="Keterangan" class="p-2 border rounded-lg" required>
+                <select id="category" class="p-2 border rounded-lg" required>
+                    <option value="pemasukan">Pemasukan</option>
+                    <option value="pengeluaran">Pengeluaran</option>
+                </select>
+                <input type="number" id="amount" placeholder="Jumlah" class="p-2 border rounded-lg" required>
+                <button type="submit" class="col-span-2 bg-blue-600 text-white p-2 rounded-lg">Tambah</button>
+            </form>
+        </div>
+
+        <table class="w-full bg-white border rounded-lg shadow-sm">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="p-2 text-left">Tanggal</th>
+                    <th class="p-2 text-left">Keterangan</th>
+                    <th class="p-2 text-left">Kategori</th>
+                    <th class="p-2 text-left">Jumlah</th>
+                </tr>
+            </thead>
+            <tbody id="transaction-table">
+            </tbody>
+        </table>
+    </div>
+    <script>
+        document.getElementById('transaction-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let date = document.getElementById('date').value;
+            let description = document.getElementById('description').value;
+            let category = document.getElementById('category').value;
+            let amount = parseInt(document.getElementById('amount').value);
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert("Jumlah harus lebih dari 0");
+                return;
+            }
+            function formatDate(dateString) {
+                const options = { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" };
+                return new Date(dateString).toLocaleDateString("id-ID", options);
+            }
+
+            // Contoh pemakaian dalam React atau JavaScript biasa
+            const transaksi = [
+                { date: "2025-03-09T17:00:00.000Z", description: "Makan", category: "Pengeluaran", amount: 41000 },
+            ];
+
+            transaksi.forEach(trx => {
+                console.log(formatDate(trx.date)); // Output: 9 Maret 2025, 17:00:00
+            });
+
+            // Kirim data ke backend
+            fetch("http://localhost:3000/add-transaction", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date, description, category, amount })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadTransactions(); // Refresh tabel setelah tambah transaksi
+            })
+            .catch(error => console.error("Error:", error));
+        });
+
+// Ambil data transaksi dari backend
+function loadTransactions() {
+    fetch("http://localhost:3000/transactions")
+    .then(response => response.json())
+    .then(data => {
+        let table = document.getElementById('transaction-table');
+        table.innerHTML = ""; // Hapus isi tabel sebelum menampilkan data baru
+        let saldo = 0;
+        let totalPemasukan = 0;
+        let totalPengeluaran = 0;
+
+        data.forEach(transaction => {
+            let newRow = table.insertRow();
+            newRow.innerHTML = `
+                <td class='p-2'>${transaction.date}</td>
+                <td class='p-2'>${transaction.description}</td>
+                <td class='p-2 ${transaction.category === 'pengeluaran' ? 'text-red-600' : 'text-blue-600'}'>
+                    ${transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
+                </td>
+                <td class='p-2 ${transaction.category === 'pengeluaran' ? 'text-red-600' : 'text-blue-600'}'>
+                    Rp ${transaction.amount.toLocaleString()}
+                </td>
+            `;
+            
+            if (transaction.category === "pemasukan") {
+                totalPemasukan += transaction.amount;
+                saldo += transaction.amount;
+            } else {
+                totalPengeluaran += transaction.amount;
+                saldo -= transaction.amount;
+            }
+        });
+
+        document.getElementById('total-pemasukan').textContent = `Rp ${totalPemasukan.toLocaleString()}`;
+        document.getElementById('total-pengeluaran').textContent = `Rp ${totalPengeluaran.toLocaleString()}`;
+        document.getElementById('saldo').textContent = `Rp ${saldo.toLocaleString()}`;
+    })
+    .catch(error => console.error("Error:", error));
+}
+
+// Load transaksi saat halaman dibuka
+document.addEventListener("DOMContentLoaded", loadTransactions);
+    </script>
+</body>
+</html>
